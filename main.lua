@@ -53,7 +53,7 @@ A value of 20 is recommended for good performance in general use
 If not using other scripts, you can increase this value
 to a suggested max of 32 --]]
 
-local MAX_LS = 24
+local MAX_LS = 20
 
 --[[
 SHOW_UNDEF_LS_AS_DOT determines how undefined logical switches
