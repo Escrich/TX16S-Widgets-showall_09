@@ -1,9 +1,12 @@
-local WGTNAME = "showal" .. "0.9"  -- max 9 characters
+local WGTNAME = "showal" .. "0.9" -- max 9 characters
 
 --[[
 HISTORY
 =======
 Author Mike Shellim http://www.rc-soar.com/opentx/lua
+
+Small changes by J.M.Escrich
+2022-08-14  v0.9.9	Eighth channel added, change on letter size in flight modes and the warning for motor armed, (In spanish now)
 2022-02-05  v0.9.9	Min pane height for full info decreased to 170px (for EdgeTX)
 2021-10-09  v0.9.8 	Workaround for https://github.com/opentx/opentx/issues/6201
 					Support for additional battery telemetry (batsens table)
@@ -83,7 +86,7 @@ local idCh1
 local strVer
 
 -- voltage telemetry sensors in priority order
-local batsens = {"Cels", "RxBt", "A1", "A2", "A3", "A4"}
+local batsens = { "Cels", "RxBt", "A1", "A2", "A3", "A4" }
 
 -- item counts
 local nLS
@@ -91,10 +94,10 @@ local nTmr
 
 -- options table
 local defaultOptions = {
-	{"Use dflt clrs", BOOL, 1},
-	{"BackColor", COLOR, WHITE},
-	{"ForeColor", COLOR, BLACK},
-	}
+	{ "Use dflt clrs", BOOL, 1 },
+	{ "BackColor", COLOR, WHITE },
+	{ "ForeColor", COLOR, BLACK },
+}
 local colorFlags
 local sticks = {}
 
@@ -103,7 +106,7 @@ local LSDefLo -- bitmap of definition state for LS's 0-31
 local LSDefHi -- bitmap of definition state for LS's 32-63
 
 -- fonts
-local fontht = {[SMLSIZE]=12, [0]=18}
+local fontht = { [SMLSIZE] = 12, [0] = 18 }
 
 -- ========= S T A R T   O F   F U N C T I O N S =============
 
@@ -112,14 +115,14 @@ FUNCTION: initLSDefs
 Populate logical switch bitmap cache. 1=defined, 0=undefined
 (Cache needed as getLogicalSwitch is slow.)
 --]]
-local function initLSDefs ()
+local function initLSDefs()
 	LSDefLo = 0
 	LSDefHi = 0
 	for i = 0, 31 do
 		local vLo = (model.getLogicalSwitch(i).func > 0) and 1 or 0
-		local vHi = (model.getLogicalSwitch(i+32).func >0) and 1 or 0
-		LSDefLo = bit32.replace (LSDefLo, vLo, i)
-		LSDefHi = bit32.replace (LSDefHi, vHi, i)
+		local vHi = (model.getLogicalSwitch(i + 32).func > 0) and 1 or 0
+		LSDefLo = bit32.replace(LSDefLo, vLo, i)
+		LSDefHi = bit32.replace(LSDefHi, vHi, i)
 	end
 end
 
@@ -131,11 +134,11 @@ Nil = undefined
 -1024 = false
 If SHOW_UNDEF_LS_AS_DOT is false, then undefined LS's will be treated as false
 --]]
-local function getLSVal (i)
-	local val = getValue (idLS1 + i)
+local function getLSVal(i)
+	local val = getValue(idLS1 + i)
 	if SHOW_UNDEF_LS_AS_DOT then
-		local long = i>31 and LSDefHi or LSDefLo
-		if bit32.extract (long, i%32) == 0 then
+		local long = i > 31 and LSDefHi or LSDefLo
+		if bit32.extract(long, i % 32) == 0 then
 			val = nil
 		end
 	end
@@ -146,15 +149,15 @@ end
 FUNCTION: getNumItems
 Determine the number of items in a field
 --]]
-local function getNumItems (field, maxitems)
+local function getNumItems(field, maxitems)
 	local i = 1
 	while true do
-		if i > maxitems or not getFieldInfo(field ..i) then
+		if i > maxitems or not getFieldInfo(field .. i) then
 			break
 		end
 		i = i + 1
 	end
-	return i-1
+	return i - 1
 end
 
 --[[
@@ -171,47 +174,46 @@ local function create(zone, options)
 	idLS1 = getFieldInfo('ls1').id
 	idTmr1 = getFieldInfo('timer1').id
 	idTxV = getFieldInfo('tx-voltage').id
-	idEle= getFieldInfo('ele').id
-	idAil= getFieldInfo('ail').id
-	idRud= getFieldInfo('rud').id
-	idThr= getFieldInfo('thr').id
+	idEle = getFieldInfo('ele').id
+	idAil = getFieldInfo('ail').id
+	idRud = getFieldInfo('rud').id
+	idThr = getFieldInfo('thr').id
 	idCh1 = getFieldInfo('ch1').id
 
 	local _, _, major, minor, rev, osname = getVersion()
-	strVer = (osname or "OpenTX") .. " " .. major .. "." .. minor.. "." .. rev
+	strVer = (osname or "OpenTX") .. " " .. major .. "." .. minor .. "." .. rev
 
 
 	-- Limit LS count to avoid possible performance
 	-- hit especially with mixer scripts.
-	nLS = getNumItems ('ls', MAX_LS)
-	nTmr = getNumItems ('timer',3)
+	nLS = getNumItems('ls', MAX_LS)
+	nTmr = getNumItems('timer', 3)
 
 	-- Initialise LS bitmap
-	initLSDefs ()
+	initLSDefs()
 
 	-- look for output channel named 'armed'
 	idchArmed = nil
 	local i = 0
 	while true do
-		local o = model.getOutput (i)
+		local o = model.getOutput(i)
 		if not o then break end
-		if string.lower (string.sub (o.name, 1,5)) == "armed" then
-			idchArmed = getFieldInfo ("ch".. (i+1)).id
+		if string.lower(string.sub(o.name, 1, 5)) == "armed" then
+			idchArmed = getFieldInfo("ch" .. (i + 1)).id
 			break
 		end
 		i = i + 1
 	end
 
-	sticks={
-		{name='A', id=idAil},
-		{name='E', id=idEle},
-		{name='T', id=idThr},
-		{name='R', id=idRud}
-		}
+	sticks = {
+		{ name = 'A', id = idAil },
+		{ name = 'E', id = idEle },
+		{ name = 'T', id = idThr },
+		{ name = 'R', id = idRud }
+	}
 
-	return {zone=zone, options=options}
+	return { zone = zone, options = options }
 end
-
 
 --[[
 ==================================================
@@ -221,7 +223,7 @@ change of settings
 ==================================================
 --]]
 local function update(wgt, newOptions)
-    wgt.options = newOptions
+	wgt.options = newOptions
 end
 
 --[[
@@ -233,12 +235,11 @@ Periodically called by OpenTX
 local function background(wgt)
 end
 
-
 --[[
 FUNCTION: hms
 Convert time in seconds into string [-]hh:mm:ss
 --]]
-local function hms (n)
+local function hms(n)
 
 	local stSign
 	if n < 0 then
@@ -248,38 +249,36 @@ local function hms (n)
 		stSign = " "
 	end
 
-	local hh = math.floor (n/3600)
+	local hh = math.floor(n / 3600)
 	n = n % 3600
-	local mm = math.floor (n/60)
+	local mm = math.floor(n / 60)
 	local ss = n % 60
 
 	-- replacement for buggy string.format()
 	-- https://github.com/opentx/opentx/issues/6201
-	local function fmt (v)
-		return #(v .. "") >=2 and v or ("0" ..v)
+	local function fmt(v)
+		return #(v .. "") >= 2 and v or ("0" .. v)
 	end
+
 	return stSign .. fmt(hh) .. ':' .. fmt(mm) .. ':' .. fmt(ss)
 end
-
-
-
 
 --[[
 FUNCTION: drawSwitchSymbol
 Draw a symobol representing switch state up/middle/down
 --]]
-local function drawSwitchSymbol (x,y,val)
-	local w=5
-	local h=8
+local function drawSwitchSymbol(x, y, val)
+	local w = 5
+	local h = 8
 	local weight = 2
-	if val==0 then
-		lcd.drawFilledRectangle (x, y+h/2, w,1, colorFlags)
+	if val == 0 then
+		lcd.drawFilledRectangle(x, y + h / 2, w, 1, colorFlags)
 	elseif val > 0 then
-		lcd.drawFilledRectangle (x+ w/2, y+h/2-1, 1,h/2+1,colorFlags)
-		lcd.drawFilledRectangle (x, y+h, w,weight,colorFlags)
+		lcd.drawFilledRectangle(x + w / 2, y + h / 2 - 1, 1, h / 2 + 1, colorFlags)
+		lcd.drawFilledRectangle(x, y + h, w, weight, colorFlags)
 	else
-		lcd.drawFilledRectangle (x+ w/2, y, 1,h/2+2,colorFlags)
-		lcd.drawFilledRectangle (x, y, w,weight,colorFlags)
+		lcd.drawFilledRectangle(x + w / 2, y, 1, h / 2 + 2, colorFlags)
+		lcd.drawFilledRectangle(x, y, w, weight, colorFlags)
 	end
 end
 
@@ -287,15 +286,15 @@ end
 FUNCTION: drawSwitches
 Draw switch block
 --]]
-local function drawSwitches (x,y)
+local function drawSwitches(x, y)
 	-- Switches
 	local x0 = x
 	local y0 = y
 	for i = 0, 7 do
-		lcd.drawText (x, y, "S".. string.char(string.byte('A')+i), SMLSIZE + colorFlags)
-		drawSwitchSymbol (x+22, y+4, getValue (idSA+i))
+		lcd.drawText(x, y, "S" .. string.char(string.byte('A') + i), SMLSIZE + colorFlags)
+		drawSwitchSymbol(x + 22, y + 4, getValue(idSA + i))
 		y = y + 12
-		if i==3 then
+		if i == 3 then
 			x = x0 + 40
 			y = y0
 		end
@@ -306,29 +305,29 @@ end
 FUNCTION: drawFM
 Display flight mode
 --]]
-local function drawFM (x,y, font)
+local function drawFM(x, y, font)
 	local fmno, fmname = getFlightMode()
 	if fmname == "" then
-		fmname = "FM".. fmno
+		fmname = "FM" .. fmno
 	end
-	lcd.drawText (x, y, fmname, font + colorFlags)
+	lcd.drawText(x, y, fmname, font + colorFlags)
 end
 
 --[[
 FUNCTION: drawModelName
 --]]
-local function drawModelName (x,y, font, nchars)
+local function drawModelName(x, y, font, nchars)
 	local strname = model.getInfo().name
 	if nchars then
-		strname = string.sub (strname, 1, nchars)
+		strname = string.sub(strname, 1, nchars)
 	end
-	lcd.drawText (x, y, strname, font + colorFlags)
+	lcd.drawText(x, y, strname, font + colorFlags)
 end
 
 --[[
 FUNCTION: drawEssentials
 --]]
-local function drawEssentials (x,y,font)
+local function drawEssentials(x, y, font)
 	local xOffset = 60
 	local lineht = fontht[font]
 	local val
@@ -338,17 +337,17 @@ local function drawEssentials (x,y,font)
 	-- zero and nil return '---'
 	-- workaround for string.format() crashing https://github.com/opentx/opentx/issues/6201
 
-	local function fmt (val)
+	local function fmt(val)
 		local st
-		if not val or val==0 then
+		if not val or val == 0 then
 			st = '---'
 		else
 			-- round to nearest integer
-			local dp0 = math.floor (val + 0.5)
+			local dp0 = math.floor(val + 0.5)
 			if math.abs(dp0) < 100 then
 				-- integer part has one or two digits
 				-- round to 1 decimal place
-				local dp1 = (math.floor (val*10 + 0.5))/10
+				local dp1 = (math.floor(val * 10 + 0.5)) / 10
 				st = tostring(dp1)
 				-- if decimal part is zero, then need to append '.0'
 				if dp0 == dp1 then
@@ -362,24 +361,23 @@ local function drawEssentials (x,y,font)
 		return st
 	end
 
-
 	-- Draw Tx voltage
 	val = getValue(idTxV)
-	lcd.drawText (x, y, "TxBatt", font + colorFlags)
-	lcd.drawText (x + xOffset, y, fmt (val), font  + colorFlags)
+	lcd.drawText(x, y, "TxBatt", font + colorFlags)
+	lcd.drawText(x + xOffset, y, fmt(val), font + colorFlags)
 	y = y + lineht
 
-	 -- Draw battery voltage of first valid sensor in batsens {} table.
-	 -- if Cels sensor, then draw total pack voltage
-	 -- If no sensor found, draw 'batt ---'
+	-- Draw battery voltage of first valid sensor in batsens {} table.
+	-- if Cels sensor, then draw total pack voltage
+	-- If no sensor found, draw 'batt ---'
 	local label
 	for i = 1, #batsens do
 		val = getValue(batsens[i])
-		if type (val) == "table" then
+		if type(val) == "table" then
 			-- must be Cels. Calculate pack voltage.
 			local tb = val
 			val = 0
-			for j =1, #tb do
+			for j = 1, #tb do
 				val = val + tb[j]
 			end
 		end
@@ -390,24 +388,24 @@ local function drawEssentials (x,y,font)
 			break
 		end
 	end
-	lcd.drawText (x, y, label or 'Batt', font+ colorFlags)
-	lcd.drawText (x + xOffset, y, fmt (val), font  + colorFlags)
+	lcd.drawText(x, y, label or 'Batt', font + colorFlags)
+	lcd.drawText(x + xOffset, y, fmt(val), font + colorFlags)
 	y = y + lineht
 
 	-- Draw RSSI
 	val = getValue("RSSI")
-	lcd.drawText (x, y, "RSSI", font + colorFlags)
-	lcd.drawText (x + xOffset, y, (val and val ~= 0) and (math.floor(val + 0.5)) or "---", font  + colorFlags)
+	lcd.drawText(x, y, "RSSI", font + colorFlags)
+	lcd.drawText(x + xOffset, y, (val and val ~= 0) and (math.floor(val + 0.5)) or "---", font + colorFlags)
 end
 
 --[[
 FUNCTION: drawTimers
 --]]
 local function drawTimers(x, y, font, linespacing)
-	for i = 0, nTmr-1 do
-		local t = getValue(idTmr1+i)
-		lcd.drawText (x, y, "t" .. (i+1) ..":", font + colorFlags)
-		lcd.drawText (x+22, y, hms (t) , font + colorFlags + (t<0 and INVERS or 0))
+	for i = 0, nTmr - 1 do
+		local t = getValue(idTmr1 + i)
+		lcd.drawText(x, y, "t" .. (i + 1) .. ":", font + colorFlags)
+		lcd.drawText(x + 22, y, hms(t), font + colorFlags + (t < 0 and INVERS or 0))
 		y = y + fontht[font] + linespacing
 	end
 end
@@ -415,16 +413,16 @@ end
 --[[
 FUNCTION: drawLS
 --]]
-local function drawLS (x,y)
+local function drawLS(x, y)
 	local x0 = x
 	local w = 6
 	local h = 7
 	local i = 0
 	while i < nLS do
-		local v = getLSVal (i)
+		local v = getLSVal(i)
 		if not v then
 			-- undefined
-			lcd.drawFilledRectangle(x+w/2-2, y+h/2-1, 3, 3, colorFlags)
+			lcd.drawFilledRectangle(x + w / 2 - 2, y + h / 2 - 1, 3, 3, colorFlags)
 		elseif v > 0 then
 			-- defined and true
 			lcd.drawFilledRectangle(x, y, w, h, colorFlags)
@@ -434,27 +432,27 @@ local function drawLS (x,y)
 		end
 
 		i = i + 1
-		if i%10 == 0 then
+		if i % 10 == 0 then
 			x = x0
 			y = y + 9
-		elseif i%5 == 0 then
+		elseif i % 5 == 0 then
 			x = x + 12
 		else
 			x = x + 8
 		end
 	end
-	lcd.drawText (x, y-4, "LS 01-"..nLS, SMLSIZE + colorFlags)
+	lcd.drawText(x, y - 4, "LS 01-" .. nLS, SMLSIZE + colorFlags)
 end
 
 --[[
 FUNCTION: drawSticks
 --]]
-local function drawSticks (x,y)
-	for _, st in ipairs (sticks) do
-		lcd.drawText (x, y -5,
-			st.name .. ":" .. math.floor (0.5 + getValue(st.id)/10.24),
+local function drawSticks(x, y)
+	for _, st in ipairs(sticks) do
+		lcd.drawText(x, y - 5,
+			st.name .. ":" .. math.floor(0.5 + getValue(st.id) / 10.24),
 			SMLSIZE + colorFlags
-			)
+		)
 		y = y + 12
 	end
 end
@@ -462,29 +460,29 @@ end
 --[[
 FUNCTION: drawChans
 --]]
-local function drawChans (x,y)
+local function drawChans(x, y)
 	local yTxtOff = -5
 	local wBar
 	local wRect = 36
-	local charsLt = {[0]="1","","3","","5","","7",""}
-	local charsRt = {[0]="","2","","4","","6","","8"}
+	local charsLt = { [0] = "1", "", "3", "", "5", "", "7", "" }
+	local charsRt = { [0] = "", "2", "", "4", "", "6", "", "8" }
 	for i = 0, 7 do
 		-- label
-		lcd.drawText (x-3, y + yTxtOff, charsLt[i], SMLSIZE + colorFlags + RIGHT)
-		lcd.drawText (x+38, y + yTxtOff, charsRt[i], SMLSIZE + colorFlags)
+		lcd.drawText(x - 3, y + yTxtOff, charsLt[i], SMLSIZE + colorFlags + RIGHT)
+		lcd.drawText(x + 38, y + yTxtOff, charsRt[i], SMLSIZE + colorFlags)
 		-- bar outline
-		lcd.drawRectangle (x, y, wRect, 5, colorFlags)
-		local val = (getValue(idCh1 + i) + 1024)/2048
+		lcd.drawRectangle(x, y, wRect, 5, colorFlags)
+		local val = (getValue(idCh1 + i) + 1024) / 2048
 		wBar = 4
 		if val < 0 then
-			val  = 0
+			val = 0
 		elseif val > 1 then
 			val = 1
 		else
 			wBar = 2
 		end
-		local xBar = val*wRect - wBar/2
-		lcd.drawFilledRectangle (x + xBar, y, wBar, 5, colorFlags)
+		local xBar = val * wRect - wBar / 2
+		lcd.drawFilledRectangle(x + xBar, y, wBar, 5, colorFlags)
 		y = y + 8
 	end
 end
@@ -492,17 +490,15 @@ end
 --[[
 FUNCTION: drawAlerts
 --]]
-local function drawAlerts (x,y)
+local function drawAlerts(x, y)
 	-- draw motor armed' warning or OTX version.
-	if idchArmed and getValue (idchArmed) > 0 then
+	if idchArmed and getValue(idchArmed) > 0 then
 		--lcd.drawText (x-54, y, "Motor en marcha!", SMLSIZE +  BLINK + INVERS)
-		lcd.drawText (x-54, y, "Motor en marcha!", BLINK + INVERS)
+		lcd.drawText(x - 54, y, "Motor en marcha!", BLINK + INVERS)
 	else
-		lcd.drawText (x, y+5, strVer, SMLSIZE + colorFlags)
+		lcd.drawText(x, y + 5, strVer, SMLSIZE + colorFlags)
 	end
 end
-
-
 
 --[[
 ==================================================
@@ -514,59 +510,60 @@ local function refresh(wgt)
 
 	-- Colour option
 	-- Check for LS bit (Github #7059)
-	if bit32.btest (wgt.options["Use dflt clrs"], 1) then
+	if bit32.btest(wgt.options["Use dflt clrs"], 1) then
 		colorFlags = 0
 	else
-		lcd.setColor (CUSTOM_COLOR, wgt.options.BackColor)
-		lcd.drawFilledRectangle (
+		lcd.setColor(CUSTOM_COLOR, wgt.options.BackColor)
+		lcd.drawFilledRectangle(
 			wgt.zone.x,
 			wgt.zone.y,
 			wgt.zone.w,
 			wgt.zone.h,
 			CUSTOM_COLOR)
-		lcd.setColor (CUSTOM_COLOR, wgt.options.ForeColor)
+		lcd.setColor(CUSTOM_COLOR, wgt.options.ForeColor)
 		colorFlags = CUSTOM_COLOR
 	end
 
 	-- render
 
-	if wgt.zone.w >= 390 and wgt.zone.h >= 170  then
+	if wgt.zone.w >= 390 and wgt.zone.h >= 170 then
 
 		-- full screen
 
-		drawModelName (wgt.zone.x+2, wgt.zone.y, MIDSIZE)
-		drawSwitches (wgt.zone.x + 6, wgt.zone.y + 36)
-		drawSticks (wgt.zone.x + 6, wgt.zone.y + 110)
-		drawChans (wgt.zone.x + 70, wgt.zone.y + 110)
+		drawModelName(wgt.zone.x + 2, wgt.zone.y, MIDSIZE)
+		drawSwitches(wgt.zone.x + 6, wgt.zone.y + 36)
+		drawSticks(wgt.zone.x + 6, wgt.zone.y + 110)
+		drawChans(wgt.zone.x + 70, wgt.zone.y + 110)
 		-- drawFM (wgt.zone.x + 140, wgt.zone.y + 105, MIDSIZE)
 		-- drawFM (wgt.zone.x + 140, wgt.zone.y + 105, SMLSIZE)
-		drawFM (wgt.zone.x + 140, wgt.zone.y + 105, colorFlags) -- Aqui andamos
-		drawEssentials (wgt.zone.x + 140, wgt.zone.y + 34, 0)
-		drawTimers (wgt.zone.x + 288, wgt.zone.y + 100, 0, 2)
-		drawLS (wgt.zone.x+288, wgt.zone.y+39)
+		drawFM(wgt.zone.x + 140, wgt.zone.y + 105, colorFlags) -- Aqui andamos
+		drawEssentials(wgt.zone.x + 140, wgt.zone.y + 34, 0)
+		drawTimers(wgt.zone.x + 288, wgt.zone.y + 100, 0, 2)
+		drawLS(wgt.zone.x + 288, wgt.zone.y + 39)
 		-- drawAlerts (wgt.zone.x + wgt.zone.w - 2, wgt.zone.y, MIDSIZE)
-		drawAlerts (wgt.zone.x + 287, wgt.zone.y, MIDSIZE)
+		drawAlerts(wgt.zone.x + 287, wgt.zone.y, MIDSIZE)
 
-	elseif wgt.zone.w >= 150  then
+	elseif wgt.zone.w >= 150 then
 
 		-- single column
 
-		drawModelName (wgt.zone.x + 2, wgt.zone.y, SMLSIZE)
+		drawModelName(wgt.zone.x + 2, wgt.zone.y, SMLSIZE)
 
 		if wgt.zone.h >= 70 then
-			drawEssentials (wgt.zone.x + 10, wgt.zone.y + 16, 0)
+			drawEssentials(wgt.zone.x + 10, wgt.zone.y + 16, 0)
 		end
 
 		if wgt.zone.h >= 150 then
-			drawTimers (wgt.zone.x + 10, wgt.zone.y + 77, 0, 0)
+			drawTimers(wgt.zone.x + 10, wgt.zone.y + 77, 0, 0)
 		end
 
 	else
 
 		-- probably the top bar. Limit the characters.
 
-		drawModelName (wgt.zone.x+2, wgt.zone.y, SMLSIZE, 6)
+		drawModelName(wgt.zone.x + 2, wgt.zone.y, SMLSIZE, 6)
 	end
 end
 
-return { name=WGTNAME, options=defaultOptions, create=create, update=update, refresh=refresh, background=background }
+return { name = WGTNAME, options = defaultOptions, create = create, update = update, refresh = refresh,
+	background = background }
